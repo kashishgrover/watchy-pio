@@ -11,15 +11,17 @@ BleKeyboard bleKeyboard;
 #define UP_LEFT_BUTTON 25
 #define UP_RIGHT_BUTTON 35
 #define DOWN_RIGHT_BUTTON 4
+#define BUTTON_MASK DOWN_LEFT_BUTTON | UP_LEFT_BUTTON | UP_RIGHT_BUTTON | DOWN_RIGHT_BUTTON
 
 #define SERVICE_UUID "1655ac6e-ec9d-11ed-a05b-0242ac120003"
 #define CHARACTERISTIC_UUID "1bbfbcbc-ec9d-11ed-a05b-0242ac120003"
 
 boolean wasConnected = false;
+int lastKeyPressed = 0;
 
 GxEPD2_BW<GxEPD2_154_D67, GxEPD2_154_D67::HEIGHT> display(GxEPD2_154_D67(5, 10, 9, 19));
 
-void initPins()
+void initInputButtonPins()
 {
   pinMode(DOWN_LEFT_BUTTON, INPUT);
   pinMode(UP_LEFT_BUTTON, INPUT);
@@ -27,7 +29,7 @@ void initPins()
   pinMode(DOWN_RIGHT_BUTTON, INPUT);
 }
 
-void printUI()
+void printMediaControllerUI()
 {
   display.setFont(&FreeMonoBold9pt7b);
   display.setTextColor(GxEPD_BLACK);
@@ -69,18 +71,6 @@ void printTextOnDisplay(String text)
   } while (display.nextPage());
 }
 
-void setup()
-{
-  display.init(115200, true, 2, false);
-
-  printUI();
-
-  bleKeyboard.begin();
-  bleKeyboard.setName("Watchy Media Controller");
-
-  initPins();
-}
-
 void handleKeyPresses()
 {
   if (digitalRead(DOWN_LEFT_BUTTON) == HIGH)
@@ -104,21 +94,33 @@ void handleKeyPresses()
   }
 }
 
+void setup()
+{
+  Serial.begin(1843200);
+  Serial.println("Starting...");
+
+  initInputButtonPins();
+  display.init(1843200, true, 2, false);
+
+  printTextOnDisplay("Waiting for connection...");
+
+  setCpuFrequencyMhz(80);
+
+  bleKeyboard.begin();
+  bleKeyboard.setName("Watchy Media Controller");
+
+  while (!bleKeyboard.isConnected())
+  {
+  };
+
+  printTextOnDisplay("Connected!");
+  delay(1000);
+  printMediaControllerUI();
+  display.hibernate();
+}
+
 void loop()
 {
-  if (bleKeyboard.isConnected() && !wasConnected)
-  {
-    printUI();
-    wasConnected = true;
-  }
-  else if (!bleKeyboard.isConnected() && wasConnected)
-  {
-    printTextOnDisplay("Disconnected");
-    wasConnected = false;
-  }
-  else if (bleKeyboard.isConnected() && wasConnected)
-  {
-    handleKeyPresses();
-    delay(500);
-  }
+  handleKeyPresses();
+  delay(500);
 }
